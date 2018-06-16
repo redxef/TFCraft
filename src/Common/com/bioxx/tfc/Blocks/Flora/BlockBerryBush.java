@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Random;
 
 import net.minecraft.block.Block;
+import net.minecraft.block.IGrowable;
 import net.minecraft.block.material.Material;
 import net.minecraft.client.renderer.texture.IIconRegister;
 import net.minecraft.creativetab.CreativeTabs;
@@ -18,7 +19,8 @@ import net.minecraft.util.DamageSource;
 import net.minecraft.util.IIcon;
 import net.minecraft.world.IBlockAccess;
 import net.minecraft.world.World;
-
+import net.minecraftforge.common.EnumPlantType;
+import net.minecraftforge.common.IPlantable;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
@@ -231,6 +233,7 @@ public class BlockBerryBush extends BlockTerraContainer
 	public void updateTick(World world, int x, int y, int z, Random rand)
 	{
 		lifeCycle(world, x, y, z);
+		doGrow(world, x, y, z, rand);
 	}
 
 	private void lifeCycle(World world, int x, int y, int z)
@@ -254,7 +257,7 @@ public class BlockBerryBush extends BlockTerraContainer
 				float temp = TFC_Climate.getHeightAdjustedTemp(world, x, y, z);
 
 				if(temp >= floraIndex.minTemp && temp < floraIndex.maxTemp)
-				{
+				{	
 					if(!tebb.hasFruit && floraIndex.inHarvest(TFC_Time.getSeasonAdjustedMonth(z)) && TFC_Time.getMonthsSinceDay(tebb.dayHarvested) > 0)
 					{
 						tebb.hasFruit = true;
@@ -282,6 +285,45 @@ public class BlockBerryBush extends BlockTerraContainer
 		{
 			world.getTileEntity(x, y, z).validate();
 		}
+	}
+	
+	private void doGrow(World world, int x, int y, int z, Random rand) {
+		if (world.isRemote)
+			return;
+		
+		if (rand.nextInt(100) != 0)
+			return;
+        
+		if (!TFC_Time.isSpring(z))
+			return;
+		
+		FloraIndex fi = FloraManager.getInstance().findMatchingIndex(getType(world.getBlockMetadata(x, y, z)));
+		float temp = TFC_Climate.getHeightAdjustedTemp(world, x, y, z);
+		if (temp < fi.minTemp || temp >= fi.maxTemp)
+			return;
+		
+        int x0 = x + rand.nextInt(3) - 1;
+        int y0 = y + rand.nextInt(2) - rand.nextInt(2);
+        int z0 = z + rand.nextInt(3) - 1;
+
+    		int x_ = x;
+    		int y_ = y;
+    		int z_ = z;
+        for (int i = 0; i < 4; i++) {
+            if (world.isAirBlock(x0, y0, z0) && this.canBlockStay(world, x0, y0, z0)) {
+                x_ = x0;
+                y_ = y0;
+                z_ = z0;
+            }
+
+            x0 = x_ + rand.nextInt(3) - 1;
+            y0 = y_ + rand.nextInt(2) - rand.nextInt(2);
+            z0 = z_ + rand.nextInt(3) - 1;
+        }
+
+        if (world.isAirBlock(x0, y0, z0) && this.canBlockStay(world, x0, y0, z0)) {
+            world.setBlock(x0, y0, z0, this, world.getBlockMetadata(x, y, z), 2);
+        }
 	}
 
 	public String getType(int meta)
